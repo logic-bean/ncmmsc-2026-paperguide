@@ -188,6 +188,20 @@ h2.vt .ic{margin-right:8px}
 .achlist li{font-size:12.5px;line-height:1.65;margin:3px 0}
 .langbtn{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.55);border-radius:8px;padding:6px 13px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.5px;margin-left:6px;font-family:inherit;line-height:1.2}
 .langbtn:hover{background:rgba(255,255,255,.3)}
+.favbtn{margin-left:auto;background:none;border:none;color:#c9a227;font-size:17px;cursor:pointer;padding:0 2px;line-height:1;font-family:inherit}
+.favbtn:hover{transform:scale(1.15)}
+.favbtn.on{color:#f59e0b}
+.favlist,.histlist{margin:6px 0}
+.favrow,.histrow{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;margin:7px 0;background:var(--panel)}
+.fvic,.hi{font-size:16px;flex:0 0 22px;text-align:center;line-height:1.2}
+.fvmain,.hmain{flex:1;min-width:0}
+.fvmain a,.hmain a{color:var(--accent);text-decoration:none;font-weight:600;font-size:14px;word-break:break-word}
+.fvmain a:hover,.hmain a:hover{text-decoration:underline}
+.fvsub,.hsub{font-size:12px;color:var(--sub);margin-top:2px}
+.fvdel{background:none;border:none;color:var(--sub);cursor:pointer;font-size:14px;padding:2px 6px}
+.fvdel:hover{color:#dc2626}
+.hclear{margin-left:auto;background:#fff;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:5px 12px;cursor:pointer;font-size:12.5px;font-family:inherit}
+.hclear:hover{border-color:var(--accent);color:var(--accent)}
 </style>
 </head>
 <body>
@@ -224,6 +238,7 @@ const typeName = {O:'口头报告',P:'张贴报告',SS:'特殊议题',T:'教程�
 const SMAP = Object.fromEntries(D.sessions.map(s=>[s.id,s]));
 
 
+
 const TREE=[
  {id:'overview',ic:'📊',nmKey:'nav_overview'},
  {id:'keynotes',ic:'🎤',nmKey:'nav_keynotes',ct:D.keys.length},
@@ -232,7 +247,9 @@ const TREE=[
  {id:'stats',ic:'📈',nmKey:'nav_stats',children:[
     {id:'authors',ic:'👥',nmKey:'nav_authors',ct:AN.authors.length},
     {id:'datasets',ic:'🗂️',nmKey:'nav_datasets',ct:Object.keys(DS_FREQ).length},
-    {id:'curation',ic:'🧹',nmKey:'nav_curation',ct:TOTAL_CUR_ANY}]}
+    {id:'curation',ic:'🧹',nmKey:'nav_curation',ct:TOTAL_CUR_ANY}]},
+ {id:'favorites',ic:'⭐',nmKey:'nav_fav',ct:0},
+ {id:'history',ic:'🕘',nmKey:'nav_hist',ct:0}
 ];
 let current='overview';
 let LANG=(function(){try{return localStorage.getItem('ncmmsc_lang')||'zh'}catch(e){return 'zh'}})();
@@ -283,7 +300,12 @@ const I18N={
   cur_def:'定义：', cur_scope:'范围：', cur_ach:'主要成果（≤3 点，由相关论文提炼）：', cur_view:'查看相关论文',
   cur_more:'仅显示前 {n} 篇，该分类共 {m} 篇。',
   cur_note:'说明：上述统计由摘要关键词自动识别，属粗略估计；凡标注 new_dataset 的论文多承担了"采集/标注/构建语料"的数据治理工作，是 AI-Ready 高质量数据集建设的一线实践。',
-  sr_title:'搜索：“{q}”', sr_sub:'匹配：作者 {a} · 论文 {p}', sr_authors:'作者（{n}）', sr_papers:'论文（{n}）', sr_more:'仅显示前 40 条，请到左侧「论文导览」查看全部 {n} 条。', sr_empty:'没有匹配的结果，试试其他关键词。'
+  sr_title:'搜索：“{q}”', sr_sub:'匹配：作者 {a} · 论文 {p}', sr_authors:'作者（{n}）', sr_papers:'论文（{n}）', sr_more:'仅显示前 40 条，请到左侧「论文导览」查看全部 {n} 条。', sr_empty:'没有匹配的结果，试试其他关键词。',
+  nav_fav:'我的收藏', nav_hist:'浏览历史',
+  fav_title:'我的收藏（{n} 项）', fav_sub:'点击任意卡片右上角的 ☆ 即可收藏感兴趣的内容（论文 / 数据集 / 作者 / 大会报告）。收藏保存在本机浏览器，关闭后仍保留。', fav_empty:'还没有收藏。在任意卡片右上角点 ☆ 即可收藏。', fav_remove:'取消收藏', fav_add:'收藏', fav_open:'打开',
+  fav_type_paper:'论文', fav_type_ds:'数据集', fav_type_au:'作者', fav_type_kn:'大会报告',
+  hist_title:'浏览历史（{n} 条）', hist_sub:'记录切换视图与打开论文的浏览轨迹，保存在本机浏览器，最多保留 200 条。', hist_empty:'还没有浏览记录。', hist_clear:'清空历史', hist_today:'今天', hist_earlier:'更早',
+  hist_type_view:'视图', hist_type_paper:'论文', hist_cleared:'已清空'
  },
  en:{
   siteTitle:'NCMMSC 2026 Paper Guide',
@@ -330,7 +352,12 @@ const I18N={
   cur_def:'Definition: ', cur_scope:'Scope: ', cur_ach:'Key achievements (≤3, distilled from related papers):', cur_view:'View related papers',
   cur_more:'Showing first {n} of {m} in this category.',
   cur_note:'Note: the above statistics are automatically identified by abstract keywords and are rough estimates; papers marked new_dataset typically undertake the data-curation work of collection/annotation/corpus construction - a frontline practice of AI-Ready high-quality dataset building.',
-  sr_title:'Search: "{q}"', sr_sub:'Matches: authors {a} · papers {p}', sr_authors:'Authors ({n})', sr_papers:'Papers ({n})', sr_more:'Showing first 40; see "Paper Guide" for all {n}.', sr_empty:'No results. Try another keyword.'
+  sr_title:'Search: "{q}"', sr_sub:'Matches: authors {a} · papers {p}', sr_authors:'Authors ({n})', sr_papers:'Papers ({n})', sr_more:'Showing first 40; see "Paper Guide" for all {n}.', sr_empty:'No results. Try another keyword.',
+  nav_fav:'Favorites', nav_hist:'History',
+  fav_title:'Favorites ({n})', fav_sub:'Click the ☆ on any card to save papers / datasets / authors / keynotes. Saved in this browser and kept across sessions.', fav_empty:'No favorites yet. Click ☆ on any card to add one.', fav_remove:'Remove', fav_add:'Add to favorites', fav_open:'Open',
+  fav_type_paper:'Paper', fav_type_ds:'Dataset', fav_type_au:'Author', fav_type_kn:'Keynote',
+  hist_title:'Browsing History ({n})', hist_sub:'Your browsing trail (view switches and opened papers), stored in this browser, up to 200 entries.', hist_empty:'No history yet.', hist_clear:'Clear history', hist_today:'Today', hist_earlier:'Earlier',
+  hist_type_view:'View', hist_type_paper:'Paper', hist_cleared:'Cleared'
  }
 };
 function t(k){const d=I18N[LANG]||{};return (d[k]!=null)?d[k]:((I18N.zh[k]!=null)?I18N.zh[k]:k);}
@@ -350,24 +377,82 @@ function typeLabel(p){
 function nPapers(n){return LANG==='en'?(n+' papers'):(n+' 篇');}
 function nAuthors(n){return LANG==='en'?(n+' authors'):(n+' 位');}
 
+/* ---------- 收藏 / 浏览历史（localStorage） ---------- */
+function loadLS(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch(e){return def;}}
+function saveLS(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+let FAV=loadLS('ncmmsc_fav',[]);
+let HIST=loadLS('ncmmsc_hist',[]);
+let HIST_READY=false;
+const HIST_MAX=200;
+function paperKey(p){return p.pdfpid?('p:'+p.pdfpid):('t:'+p.title);}
+function isFav(k){return FAV.some(x=>x.k===k);}
+function favBtn(k,type,title,sub){
+  const on=isFav(k);
+  return `<button class="favbtn${on?' on':''}" type="button" data-favk="${esc(k)}" data-favtype="${type}" data-favtitle="${esc(title)}" data-favsub="${esc(sub||'')}" title="${esc(on?t('fav_remove'):t('fav_add'))}">${on?'★':'☆'}</button>`;
+}
+function updateBadges(){
+  document.querySelectorAll('[data-ct="favorites"]').forEach(e=>e.textContent=FAV.length);
+  document.querySelectorAll('[data-ct="history"]').forEach(e=>e.textContent=HIST.length);
+}
+function toggleFav(k,type,title,sub){
+  if(!k)return;
+  const i=FAV.findIndex(x=>x.k===k);
+  if(i>=0)FAV.splice(i,1); else FAV.unshift({k,type:type||'paper',title:title||k,sub:sub||'',ts:Date.now()});
+  saveLS('ncmmsc_fav',FAV);
+  document.querySelectorAll('[data-favk]').forEach(b=>{if(b.dataset.favk===k){const on=isFav(k);b.classList.toggle('on',on);b.textContent=on?'★':'☆';}});
+  updateBadges();
+  if(current==='favorites')renderView('favorites');
+}
+function removeFav(k){
+  const i=FAV.findIndex(x=>x.k===k);
+  if(i<0)return;
+  FAV.splice(i,1);saveLS('ncmmsc_fav',FAV);updateBadges();
+  if(current==='favorites')renderView('favorites');
+}
+function recordHist(entry,dedupe){
+  if(!entry||!entry.k)return;
+  if(dedupe && HIST.length && HIST[0].k===entry.k)return;
+  HIST.unshift(entry);
+  if(HIST.length>HIST_MAX)HIST.length=HIST_MAX;
+  saveLS('ncmmsc_hist',HIST);
+  updateBadges();
+}
+function viewLabel(id){
+  if(id && id.indexOf('theme:')===0)return t('nav_papers')+' / '+tname(id.slice(6));
+  const m={overview:'nav_overview',keynotes:'nav_keynotes',papers:'nav_papers',authors:'nav_authors',datasets:'nav_datasets',curation:'nav_curation',favorites:'nav_fav',history:'nav_hist'};
+  return t(m[id]||'nav_overview');
+}
+function findPaperByKey(k){return P.find(p=>paperKey(p)===k)||P.find(p=>('t:'+p.title)===k);}
+function jumpToKey(k){
+  if(!k)return;
+  if(k.indexOf('ds:')===0){const n=k.slice(3);select('datasets');setTimeout(()=>{const el=[...document.querySelectorAll('#content .acard')].find(c=>((c.querySelector('.an')||{}).textContent||'')===n);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},90);return;}
+  if(k.indexOf('au:')===0){const n=k.slice(3);select('authors');setTimeout(()=>{const el=[...document.querySelectorAll('#content .acard')].find(c=>((c.querySelector('.an')||{}).textContent||'')===n);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},90);return;}
+  if(k.indexOf('kn:')===0){select('keynotes');return;}
+  const p=findPaperByKey(k);
+  if(p){
+    if(p.pdf){window.open(pdfHref(p.pdf),'_blank');}
+    else{select('papers');const q=document.getElementById('q');if(q){q.value=p.title;q.dispatchEvent(new Event('input'));}}
+  }
+}
+
 // 数据集简介（中文 fallback；英文走 DS_INFO_EN）
 const DS_DESC={};
 
-function badge(ct){return ct!=null?`<span class="ct">${ct}</span>`:'';}
+function badge(ct,id){return ct!=null?`<span class="ct"${id?` data-ct="${id}"`:''}>${ct}</span>`:'';}
 function navName(n){return n.theme?tname(n.theme):t(n.nmKey);}
 function buildNav(){
  let h='';
  TREE.forEach(n=>{
    if(n.children){
-     h+=`<div class="grp"><div class="navitem" data-id="${n.id}" data-toggle="${n.id}"><span class="ar open">▶</span><span class="ic">${n.ic}</span><span class="nm">${esc(navName(n))}</span>${badge(n.ct)}</div><div class="children">`;
+     h+=`<div class="grp"><div class="navitem" data-id="${n.id}" data-toggle="${n.id}"><span class="ar open">▶</span><span class="ic">${n.ic}</span><span class="nm">${esc(navName(n))}</span>${badge(n.ct,n.id==='favorites'||n.id==='history'?n.id:'')}</div><div class="children">`;
      n.children.forEach(c=>{h+=`<div class="navitem" data-id="${c.id}"><span class="ic">${c.ic}</span><span class="nm">${esc(navName(c))}</span>${badge(c.ct)}</div>`;});
      h+=`</div></div>`;
    } else {
-     h+=`<div class="navitem" data-id="${n.id}"><span class="ic">${n.ic}</span><span class="nm">${esc(navName(n))}</span>${badge(n.ct)}</div>`;
+     h+=`<div class="navitem" data-id="${n.id}"><span class="ic">${n.ic}</span><span class="nm">${esc(navName(n))}</span>${badge(n.ct,n.id==='favorites'||n.id==='history'?n.id:'')}</div>`;
    }
  });
  $("#nav").innerHTML=h;
- $("#nav").querySelectorAll('[data-toggle]').forEach(el=>{el.onclick=e=>{const ar=el.querySelector('.ar');ar.classList.toggle('open');const ch=el.nextElementSibling;if(ch)ch.style.display=(ch.style.display==='none')?'block':'none';select(el.dataset.id);};});
+ $("#nav").querySelectorAll('[data-toggle]').forEach(el=>{el.onclick=e=>{const ar=el.querySelector('.ar');ar.classList.toggle('open');const ch=el.nextElementSibling;if(ch)ch.style.display=(ch.style.display==='none')?'block':'none';if(el.dataset.id!=='stats')select(el.dataset.id);};});
  $("#nav").querySelectorAll('[data-id]').forEach(el=>{if(el.hasAttribute('data-toggle'))return;el.onclick=()=>select(el.dataset.id);});
 }
 function setActive(id){
@@ -396,7 +481,7 @@ function renderKeynotes(){
    const sub=LANG==='en'?esc(k.zh):esc(k.en);
    h+=`<div class="paper"><a class="pt" href="#" onclick="return false">${title}</a>`;
    h+=`<div class="pa">${sub}<br>${esc(k.sp)} · ${esc(k.aff)}</div>`;
-   h+=`<div class="ptags"><span class="tag sess">${esc(k.cat)}</span><span class="tag">${esc(k.no)}</span></div>`;
+   h+=`<div class="ptags"><span class="tag sess">${esc(k.cat)}</span><span class="tag">${esc(k.no)}</span>${favBtn('kn:'+k.no,'kn',LANG==='en'?k.en:k.zh,k.sp)}</div>`;
    h+=`<div style="font-size:13px;color:var(--ink);margin-top:7px;line-height:1.65">${esc(k.abs)}</div></div>`;
  });
  return h;
@@ -434,7 +519,7 @@ function paperCard(p){
     dim('results',t('d_results'),esc(d.results||''))+
     dim('contribution',t('d_contribution'),esc(d.contribution||''));
   const ttl=p.pdf?`<a href="${pdfHref(p.pdf)}" target="_blank" rel="noopener">${esc(p.title)}</a>`:esc(p.title);
-  return `<div class="pcard"><div class="ptagrow">${pid}${sessTag}<span class="tag">${esc(typeLabel(p))}</span>${inv}${multi}${tm}${pdf}</div>`
+  return `<div class="pcard" data-pk="${esc(paperKey(p))}" data-pt="${esc(p.title)}"><div class="ptagrow">${pid}${sessTag}<span class="tag">${esc(typeLabel(p))}</span>${inv}${multi}${tm}${pdf}${favBtn(paperKey(p),'paper',p.title,p.authors)}</div>`
    +`<div class="ptitle">${ttl}${tbadge}</div><div class="pauth">${esc(p.authors)||'—'}</div>`
    +`<div class="dims">${dimsHTML}</div>${abs}</div>`;
 }
@@ -512,7 +597,7 @@ function authorCardHTML(a){
   const papers=a.pids.map(i=>{const p=P[i];if(!p)return '';const tt=p.pdf?`<a href="${pdfHref(p.pdf)}" target="_blank" rel="noopener">${esc(p.title)}</a>`:esc(p.title);return `<li>${tt} <span class="tag sess">${esc(p.slots?p.slots[0][0]:'')}</span></li>`;}).join('');
   return `<div class="acard" data-s="${esc((a.n+' '+(a.aff||'')).toLowerCase())}">
     <div class="ah"><span class="an">${esc(a.n)}</span><span class="abadge">${nPapers(a.cnt)}</span>
-      <span class="amin">${a.first?`${t('au_first')} ${a.first}`:''}${a.first&&a.corr?' · ':''}${a.corr?`${t('au_corr')} ${a.corr}`:''}</span></div>
+      <span class="amin">${a.first?`${t('au_first')} ${a.first}`:''}${a.first&&a.corr?' · ':''}${a.corr?`${t('au_corr')} ${a.corr}`:''}</span>${favBtn('au:'+a.n,'au',a.n,a.aff||'')}</div>
     <div class="ameta"><span class="ml">${t('au_aff')}</span>${affs}</div>
     <details><summary>${t('au_view')} (${a.cnt})</summary><ul class="plist">${papers}</ul></details></div>`;
 }
@@ -558,7 +643,7 @@ function renderDatasets(){
   h+=`<div class="kbox"><div class="kl">${fmt(t('ds_top'),{n:items.length})}</div><div class="chart">${bars(items.slice(0,15).map(([k,v])=>[k,v]),null,' '+t('unit_times'))}</div></div>`;
   items.forEach(([name,cnt])=>{
     const ps=(DS_PAPERS[name]||[]).map(i=>{const p=P[i];if(!p)return '';const tt=p.pdf?`<a href="${pdfHref(p.pdf)}" target="_blank" rel="noopener">${esc(p.title)}</a>`:esc(p.title);return `<li>${tt} <span class="tag sess">${esc(p.slots?p.slots[0][0]:'')}</span></li>`;}).join('');
-    h+=`<div class="acard"><div class="ah"><span class="an">${esc(name)}</span><span class="abadge">${nPapers(cnt)}</span></div>`
+    h+=`<div class="acard"><div class="ah"><span class="an">${esc(name)}</span><span class="abadge">${nPapers(cnt)}</span>${favBtn('ds:'+name,'ds',name,'')}</div>`
       +dsInfoHTML(name)
       +`<details><summary>${t('ds_view')} (${cnt})</summary><ul class="plist">${ps}</ul></details></div>`;
   });
@@ -609,6 +694,39 @@ function renderSearch(q){
  return h;
 }
 
+/* ---------- 收藏 / 浏览历史 视图 ---------- */
+function renderFavorites(){
+  const items=FAV;
+  let h=viewHead(t('crumb')+' / '+t('nav_fav'),'⭐',fmt(t('fav_title'),{n:items.length}),t('fav_sub'));
+  if(!items.length){h+=`<div class="empty">${t('fav_empty')}</div>`;return h;}
+  h+=`<div class="favlist">`;
+  items.forEach(f=>{
+    const ic=f.type==='paper'?'📄':f.type==='ds'?'🗂️':f.type==='au'?'👤':'🎤';
+    h+=`<div class="favrow"><span class="fvic">${ic}</span>`
+      +`<div class="fvmain"><a href="javascript:void(0)" data-jump="${esc(f.k)}">${esc(f.title)}</a>`
+      +`<div class="fvsub">${t('fav_type_'+f.type)}${f.sub?' · '+esc(f.sub):''}</div></div>`
+      +`<button class="fvdel" type="button" data-unfav="${esc(f.k)}" title="${t('fav_remove')}">✕</button></div>`;
+  });
+  h+=`</div>`;
+  return h;
+}
+function renderHistory(){
+  let h=viewHead(t('crumb')+' / '+t('nav_hist'),'🕘',fmt(t('hist_title'),{n:HIST.length}),t('hist_sub'));
+  h+=`<div class="ptoolbar"><span class="pcount" style="margin:0">${fmt(t('hist_title'),{n:HIST.length})}</span><button class="hclear" id="hclear" type="button">${t('hist_clear')}</button></div>`;
+  if(!HIST.length){h+=`<div class="empty">${t('hist_empty')}</div>`;return h;}
+  h+=`<div class="histlist">`;
+  HIST.forEach(x=>{
+    const tm=new Date(x.ts).toLocaleString();
+    const ic=x.type==='paper'?'📄':'🧭';
+    const jattr=x.type==='paper'?`data-jumppaper="${esc(x.k)}"`:`data-jumpview="${esc(x.id)}"`;
+    h+=`<div class="histrow"><span class="hi">${ic}</span>`
+      +`<div class="hmain"><a href="javascript:void(0)" ${jattr}>${esc(x.label)}</a>`
+      +`<div class="hsub">${x.type==='paper'?t('hist_type_paper'):t('hist_type_view')} · ${esc(tm)}</div></div></div>`;
+  });
+  h+=`</div>`;
+  return h;
+}
+
 /* ---------- 调度 / 语言 ---------- */
 function renderView(id){
  let h='';
@@ -619,12 +737,14 @@ function renderView(id){
  else if(id==='authors')h=renderAuthors();
  else if(id==='datasets')h=renderDatasets();
  else if(id==='curation')h=renderCuration();
+ else if(id==='favorites')h=renderFavorites();
+ else if(id==='history')h=renderHistory();
  else h=renderOverview();
  $("#content").innerHTML=`<div class="view show">${h}</div>`;
  if(id==='papers'||id.startsWith('theme:'))initGuide();
  if(id==='authors')bindAuthors();
 }
-function select(id){current=id;setActive(id);renderView(id);}
+function select(id){current=id;setActive(id);renderView(id);if(HIST_READY&&id!=='history'&&id!=='favorites')recordHist({type:'view',k:'v:'+id,label:viewLabel(id),id:id,ts:Date.now()},true);}
 function applyLang(){
  document.documentElement.lang=(LANG==='en'?'en':'zh-CN');
  document.title=t('siteTitle');
@@ -640,7 +760,25 @@ function applyLang(){
 function toggleLang(){ LANG=(LANG==='en'?'zh':'en'); try{localStorage.setItem('ncmmsc_lang',LANG);}catch(e){} applyLang(); }
 
 $("#q").addEventListener('input',e=>{const q=e.target.value.trim();if(q){$("#nav").querySelectorAll('.navitem').forEach(x=>x.classList.remove('active'));$("#content").innerHTML=`<div class="view show">${renderSearch(q)}</div>`;}else{select(current);}});
-(function(){const lb=document.getElementById('langBtn');if(lb)lb.onclick=toggleLang;applyLang();})();
+
+document.addEventListener('click',e=>{
+  const fb=e.target.closest('.favbtn');
+  if(fb){e.preventDefault();e.stopPropagation();toggleFav(fb.dataset.favk,fb.dataset.favtype,fb.dataset.favtitle,fb.dataset.favsub);return;}
+  const un=e.target.closest('[data-unfav]');
+  if(un){e.preventDefault();removeFav(un.dataset.unfav);return;}
+  const j=e.target.closest('[data-jump]');
+  if(j){e.preventDefault();jumpToKey(j.dataset.jump);return;}
+  const jv=e.target.closest('[data-jumpview]');
+  if(jv){e.preventDefault();select(jv.dataset.jumpview);return;}
+  const jp=e.target.closest('[data-jumppaper]');
+  if(jp){e.preventDefault();jumpToKey(jp.dataset.jumppaper);return;}
+  const hc=e.target.closest('#hclear');
+  if(hc){e.preventDefault();HIST=[];saveLS('ncmmsc_hist',HIST);updateBadges();renderView('history');return;}
+  const a=e.target.closest('#content .pcard a[href]');
+  if(a){const card=a.closest('.pcard');if(card&&card.dataset.pk)recordHist({type:'paper',k:card.dataset.pk,label:card.dataset.pt||card.dataset.pk,ts:Date.now()},true);}
+});
+
+(function(){const lb=document.getElementById('langBtn');if(lb)lb.onclick=toggleLang;applyLang();HIST_READY=true;updateBadges();})();
 
 
 </script>
