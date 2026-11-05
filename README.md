@@ -1,5 +1,7 @@
 # NCMMSC 2026 会议论文导读 / Paper Guide
 
+> 🌐 **在线访问 / Live site：<https://logic-bean.github.io/nvmmsc-2026-paperguide/>**
+
 NCMMSC 2026（第二十一届全国人机语音通讯学术会议）论文导读页，**中英双语**，沿用 Interspeech 2026 论文信息整理框架。
 
 ## 内容
